@@ -7,7 +7,6 @@ pub struct Conf {
     pub rabbit_url: String,
     pub rabbit_user: String,
     pub rabbit_pass: String,
-    // pub enabled_exporters: Option<Vec<String>>,
     #[serde(default)]
     pub enabled_exporters: Vec<String>,
     pub timeout: u32,
