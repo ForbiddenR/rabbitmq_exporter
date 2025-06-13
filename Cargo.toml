@@ -16,7 +16,11 @@ tokio = { version = "1", features = [
     "process",
     "rt-multi-thread",
 ] }
-toml = "0.8"
+# toml = "0.8"
 log = "0.4"
 fern = "0.7"
 chrono = { version = "0.4", features = ["serde"] }
+envy = "0.4"
+
+[dev-dependencies]
+dotenvy = "0.15"

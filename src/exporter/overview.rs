@@ -1,74 +1,66 @@
 use std::collections::HashMap;
 
-use prometheus::GaugeVec;
+use prometheus::Gauge;
 use serde_json::Value;
 
 use crate::{
-    config::Config, error::Error, exporter::{new_gauge_vec, parse_value, request}, set_field, set_gauge_vec
+    config::Conf,
+    error::Error,
+    exporter::{new_gauge, parse_value, request},
+    set_field, set_gauge,
 };
 
 pub struct OverviewExporter {
     pub node_info: Option<NodeInfo>,
-    pub version_metric: GaugeVec,
-    pub metric_description: HashMap<String, GaugeVec>,
+    // pub version_metric: GaugeVec,
+    pub metric_description: HashMap<String, Gauge>,
 }
 
 impl OverviewExporter {
     pub fn new() -> Self {
-        let overview_lables = ["cluster"];
+        // let overview_lables = ["cluster"];
         let metric_description = HashMap::from([
-            set_gauge_vec!(
-                "object_totals.queues",
-                "queues",
-                "Number of queues in use.",
-                &overview_lables
-            ),
-            set_gauge_vec!(
+            set_gauge!("object_totals.queues", "queues", "Number of queues in use."),
+            set_gauge!(
                 "queue_totals.messages",
                 "queue_messages_global",
-                "Number ready and unacknowledged messages in cluster.",
-                &overview_lables
+                "Number ready and unacknowledged messages in cluster."
             ),
-            set_gauge_vec!(
+            set_gauge!(
                 "queue_totals.messages_ready",
                 "queue_messages_ready_global",
-                "Number of messages ready to be delivered to clients.",
-                &overview_lables
+                "Number of messages ready to be delivered to clients."
             ),
-            set_gauge_vec!(
+            set_gauge!(
                 "queue_totals.messages_unacknowledged",
                 "queue_messages_unacknowledged_global",
-                "Number of messages delivered to clients but not yet acknowledged.",
-                &overview_lables
+                "Number of messages delivered to clients but not yet acknowledged."
             ),
-            set_gauge_vec!(
+            set_gauge!(
                 "message_stats.publish_details.rate",
                 "messages_publish_rate",
-                "Rate at which messages are entering the server.",
-                &overview_lables
+                "Rate at which messages are entering the server."
             ),
-            set_gauge_vec!(
+            set_gauge!(
                 "message_stats.deliver_no_ack_details.rate",
                 "messages_deliver_no_ack_rate",
-                "Rate at which messages are delivered to consumers that use automatic acknowledgements.",
-                &overview_lables
+                "Rate at which messages are delivered to consumers that use automatic acknowledgements."
             ),
-            set_gauge_vec!(
+            set_gauge!(
                 "message_stats.deliver_details.rate",
                 "messages_deliver_rate",
-                "Rate at which messages are delivered to consumers that use manual acknowledgements.",
-                &overview_lables
+                "Rate at which messages are delivered to consumers that use manual acknowledgements."
             ),
         ]);
 
         Self {
             node_info: None,
             metric_description,
-            version_metric: new_gauge_vec(
-                "rabbitmq_version_info",
-                "A metric with a constant '1' value labeled by rabbitmq version, erlang version, node, cluster.",
-                &["rabbitmq", "erlang", "node", "cluster"],
-            ),
+            // version_metric: new_gauge_vec(
+            //     "rabbitmq_version_info",
+            //     "A metric with a constant '1' value labeled by rabbitmq version, erlang version, node, cluster.",
+            //     &["rabbitmq", "erlang", "node", "cluster"],
+            // ),
         }
     }
 
@@ -79,43 +71,50 @@ impl OverviewExporter {
         }
     }
 
-    pub fn clear_metrics(&self) {
-        self.metric_description.iter().for_each(|(_, v)|v.reset());
-        let node = self.node_info.clone().unwrap_or_default();
-        self.version_metric.with_label_values(&[
-            &node.rabbitmq_version,
-            &node.erlang_version,
-            &node.node,
-            &node.cluster_name,
-        ]).set(0.0);
+    pub fn get_node_name(&self) -> String {
+        match &self.node_info {
+            Some(t) => t.node.clone(),
+            None => String::from(""),
+        }
     }
 
-    pub async fn collect(&mut self, config: &Config) -> Result<(), Error> {
-        self.metric_description.iter().for_each(|(_, v)| v.reset());
+    pub async fn collect(&mut self, config: &Conf) -> Result<(), Error> {
+        // self.metric_description.iter().for_each(|(_, v)| v.reset());
+        // self.version_metric.reset();
         let response = request(config, "overview").await?.json::<Value>().await?;
 
-        let node = if self.node_info.is_none() {
-            self.node_info = Some(NodeInfo::from_value(response.clone()));
-            self.node_info.as_ref().unwrap()
-        } else {
-            self.node_info.as_ref().unwrap()
-        };
+        // let node = if self.node_info.is_none() {
+        //     self.node_info = Some(NodeInfo::from_value(response.clone()));
+        //     self.node_info.as_ref().unwrap()
+        // } else {
+        //     self.node_info
+        //         .as_mut()
+        //         .unwrap()
+        //         .update_cluster_and_node(response.clone());
+        //     self.node_info.as_ref().unwrap()
+        // };
 
-        self.version_metric
-            .with_label_values(&[
-                &node.rabbitmq_version,
-                &node.erlang_version,
-                &node.node,
-                &node.cluster_name,
-            ])
-            .set(1.0);
+        if self.node_info.is_none() {
+            self.node_info = Some(NodeInfo::from_value(response.clone()));
+        } else {
+            self.node_info
+                .as_mut()
+                .unwrap()
+                .update_cluster_and_node(response.clone());
+        }
+
+        // self.version_metric
+        //     .with_label_values(&[
+        //         &node.rabbitmq_version,
+        //         &node.erlang_version,
+        //         &node.node,
+        //         &node.cluster_name,
+        //     ])
+        //     .set(1.0);
 
         let value_map = parse_value(response);
         value_map.iter().for_each(|(k, &v)| {
-            self.metric_description.get(k).map(|f| {
-                f.with_label_values(&[self.node_info.as_ref().unwrap().cluster_name.clone()])
-                    .set(v);
-            });
+            self.metric_description.get(k).map(|f| f.set(v));
         });
         Ok(())
     }
@@ -125,8 +124,8 @@ impl OverviewExporter {
 pub struct NodeInfo {
     pub node: String,
     pub cluster_name: String,
-    pub erlang_version: String,
-    pub rabbitmq_version: String,
+    // pub erlang_version: String,
+    // pub rabbitmq_version: String,
 }
 
 impl NodeInfo {
@@ -135,8 +134,13 @@ impl NodeInfo {
 
         set_field!(node_info, v, "node", node);
         set_field!(node_info, v, "cluster_name", cluster_name);
-        set_field!(node_info, v, "erlang_version", erlang_version);
-        set_field!(node_info, v, "rabbitmq_version", rabbitmq_version);
+        // set_field!(node_info, v, "erlang_version", erlang_version);
+        // set_field!(node_info, v, "rabbitmq_version", rabbitmq_version);
         node_info
+    }
+
+    pub fn update_cluster_and_node(&mut self, v: Value) {
+        set_field!(self, v, "node", node);
+        set_field!(self, v, "cluster_name", cluster_name);
     }
 }

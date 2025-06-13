@@ -1,2 +1,6 @@
 /target
 rabbitmq.toml
+.env
+.erlang.cookie
+cluster-entrypoint.sh
+docker-*

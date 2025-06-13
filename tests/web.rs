@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
-use actix_web::{App, HttpServer, web::Data};
-use rabbitmq_exporter::{config::Conf, metrics::Metrics, routes, set_log};
+use actix_web::{web::Data, App, HttpServer};
+use dotenvy::dotenv;
+use rabbitmq_exporter::{config::Conf, metrics::Metrics, routes};
 use tokio::sync::RwLock;
 
-#[actix_web::main]
+#[actix_web::test]
 async fn main() -> std::io::Result<()> {
-    set_log();
+    assert_eq!(dotenv().is_ok(), true);
     let config = Conf::build().unwrap();
     let shared_gauge = Arc::new(RwLock::new(Metrics::new(config)));
 
@@ -17,7 +18,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(gauge_clone.clone()))
             .service(routes::metrics)
     })
-    .bind(("0.0.0.0", 8080))?
+    .bind(("0.0.0.0", 8090))?
     .run()
     .await
 }

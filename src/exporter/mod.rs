@@ -1,10 +1,10 @@
 use std::{collections::HashMap, time::Duration};
 
-use prometheus::{GaugeVec, register_gauge_vec};
+use prometheus::{Gauge, register_gauge, register_gauge_vec, GaugeVec};
 use reqwest::{Error, Response};
 use serde_json::{Map, Value};
 
-use crate::config::Config;
+use crate::config::Conf;
 
 pub mod overview;
 pub mod queue;
@@ -26,11 +26,22 @@ macro_rules! get_value {
 }
 
 #[macro_export]
+macro_rules! set_gauge {
+    ($key: literal, $name: literal, $help:literal) => {
+        ($key.to_string(), new_gauge($name, $help))
+    };
+}
+
+#[macro_export]
 macro_rules! set_gauge_vec {
     ($key:literal, $name:literal, $help:literal, $args:expr) => {
         ($key.to_string(), new_gauge_vec($name, $help, $args))
     };
 }
+
+fn new_gauge(name: &str, help: &str) -> Gauge {
+    register_gauge!(name, help).expect("Could not create gauge")
+} 
 
 pub fn new_gauge_vec(name: &str, help: &str, tags: &[&str]) -> GaugeVec {
     register_gauge_vec!(name, help, tags).expect("Could not create gauge")
@@ -107,7 +118,7 @@ fn add_fields(map: &mut HashMap<String, f64>, basename: String, source: &Map<Str
     }
 }
 
-async fn request(config: &Config, endpoint: &str) -> Result<Response, Error> {
+async fn request(config: &Conf, endpoint: &str) -> Result<Response, Error> {
     let client = reqwest::Client::new();
     client
         .get(format!("{}/{}/{}", config.rabbit_url, "api", endpoint))
