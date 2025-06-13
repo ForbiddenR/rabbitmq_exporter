@@ -38,9 +38,9 @@ impl Metrics {
 
         if let Err(e) = self.overview.collect(&self.config).await {
             log::error!("failed to fetch overview messages: {e}");
-            self.up_metric
+            return self.up_metric
                 .with_label_values(&[self.overview.get_node_name()])
-                .set(0.0);
+                .set(0.0)
         } else {
             self.up_metric
                 .with_label_values(&[self.overview.get_node_name()])
