@@ -16,20 +16,16 @@ impl Metrics {
     pub fn new(config: Conf) -> Self {
         Metrics {
             config: config.clone(),
-            overview: OverviewExporter::new(),
+            overview: OverviewExporter::new(
+                config.enabled_exporters.contains(&"overview".to_owned()),
+            ),
             up_metric: register_gauge_vec!(
                 "node_status",
                 "Was the last scrape of rabbitmq successful.",
                 &["node"]
             )
             .expect("Could not create gauge"),
-            // queue: QueueExporter::new(),
-            queue: if config.enabled_exporters.is_some()
-                && config
-                    .enabled_exporters
-                    .unwrap()
-                    .contains(&"queue".to_owned())
-            {
+            queue: if config.enabled_exporters.contains(&"queue".to_owned()) {
                 Some(QueueExporter::new())
             } else {
                 None
@@ -43,24 +39,16 @@ impl Metrics {
         if let Err(e) = self.overview.collect(&self.config).await {
             log::error!("failed to fetch overview messages: {e}");
             self.up_metric
-                .with_label_values(&[
-                    self.overview.get_node_name(),
-                ])
+                .with_label_values(&[self.overview.get_node_name()])
                 .set(0.0);
         } else {
             self.up_metric
-                .with_label_values(&[
-                    self.overview.get_node_name(),
-                ])
+                .with_label_values(&[self.overview.get_node_name()])
                 .set(1.0);
         }
 
-        if let Some(q) = self.queue.as_mut() {
-            if let Err(e) = q
-                .set_cluster_name(self.overview.get_cluster_name())
-                .collect(&self.config)
-                .await
-            {
+        if let Some(q) = &self.queue {
+            if let Err(e) = q.collect(&self.config).await {
                 log::error!("failed to fetch queue message: {e}");
             }
         }

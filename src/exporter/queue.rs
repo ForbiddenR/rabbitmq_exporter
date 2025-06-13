@@ -12,8 +12,8 @@ use crate::{
 
 #[derive(Clone)]
 pub struct QueueExporter {
-    pub cluster_name: String,
-    pub queue_gauge_vec: HashMap<String, GaugeVec>,
+    // pub cluster_name: String,
+    queue_gauge_vec: HashMap<String, GaugeVec>,
 }
 
 impl QueueExporter {
@@ -40,15 +40,15 @@ impl QueueExporter {
             ),
         ]);
         QueueExporter {
-            cluster_name: "".into(),
+            // cluster_name: "".into(),
             queue_gauge_vec,
         }
     }
 
-    pub fn set_cluster_name(&mut self, cluster_name: String) -> &Self {
-        self.cluster_name = cluster_name;
-        self
-    }
+    // pub fn set_cluster_name(&mut self, cluster_name: String) -> &Self {
+    //     self.cluster_name = cluster_name;
+    //     self
+    // }
 
     pub async fn collect(&self, config: &Conf) -> Result<(), Error> {
         self.queue_gauge_vec.iter().for_each(|(_, f)| f.reset());
