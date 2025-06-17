@@ -6,12 +6,11 @@ use serde_json::Value;
 use crate::{
     config::Conf,
     error::Error,
-    exporter::{new_gauge, parse_value, request},
-    set_field, set_gauge,
+    exporter::{RabbitJsonReply, RabbitReply, new_gauge, request}, set_gauge,
 };
 
 pub struct OverviewExporter {
-    node_info: Option<NodeInfo>,
+    // node_info: Option<NodeInfo>,
     metric_description: HashMap<String, Gauge>,
 }
 
@@ -53,15 +52,7 @@ impl OverviewExporter {
         ]);
 
         Self {
-            node_info: None,
             metric_description,
-        }
-    }
-
-    pub fn get_node_name(&self) -> String {
-        match &self.node_info {
-            Some(t) => t.node.clone(),
-            None => String::from(""),
         }
     }
 
@@ -71,43 +62,17 @@ impl OverviewExporter {
 
     pub async fn collect(&mut self, config: &Conf, enable: bool) -> Result<(), Error> {
         self.clear();
-
         let response = request(config, "overview").await?.json::<Value>().await?;
 
-        if self.node_info.is_none() {
-            self.node_info = Some(NodeInfo::from_value(response.clone()));
-        } else {
-            self.node_info
-                .as_mut()
-                .unwrap()
-                .update_node(response.clone());
-        }
-
         if enable {
-            parse_value(response).iter().for_each(|(k, &v)| {
-                self.metric_description.get(k).map(|f| f.set(v));
-            });
+            RabbitJsonReply::from_response(&response)
+                .make_map()
+                .iter()
+                .for_each(|(k, &v)| {
+                    self.metric_description.get(k).map(|f| f.set(v));
+                });
         }
 
         Ok(())
-    }
-}
-
-#[derive(Default, Clone)]
-pub struct NodeInfo {
-    pub node: String,
-    pub test: String,
-}
-
-impl NodeInfo {
-    pub fn from_value(v: Value) -> Self {
-        let mut node_info = NodeInfo::default();
-
-        set_field!(node_info, v, "node", node);
-        node_info
-    }
-
-    pub fn update_node(&mut self, v: Value) {
-        set_field!(self, v, "node", node);
     }
 }

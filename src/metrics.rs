@@ -26,15 +26,16 @@ impl Metrics {
         }
     }
 
+    pub fn is_exported(&self, exporter: &str) -> bool {
+        self.config.enabled_exporters.contains(&exporter.to_owned())
+    }
+
     pub async fn collect(&mut self, header: &str) {
         if let Err(e) = self
             .overview
             .collect(
                 &self.config,
-                self.config
-                    .enabled_exporters
-                    .contains(&"overview".to_owned())
-                    || header.contains("overview"),
+                self.is_exported("overview") || header.contains("overview"),
             )
             .await
         {
@@ -44,7 +45,7 @@ impl Metrics {
             self.up_metric.set(1.0);
         }
 
-        if self.config.enabled_exporters.contains(&"queue".to_owned()) || header.contains("queue") {
+        if self.is_exported("queue") || header.contains("queue") {
             if let Err(e) = self.queue.collect(&self.config).await {
                 log::error!("failed to fetch queue message: {e}");
             }
