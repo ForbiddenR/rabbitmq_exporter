@@ -3,6 +3,7 @@ pub mod error;
 pub mod exporter;
 pub mod metrics;
 pub mod routes;
+pub mod header;
 
 pub fn set_log() {
     fern::Dispatch::new()
