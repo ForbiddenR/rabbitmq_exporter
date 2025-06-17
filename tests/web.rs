@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use actix_web::{web::Data, App, HttpServer};
+use actix_web::{App, HttpServer, web::Data};
 use dotenvy::dotenv;
 use rabbitmq_exporter::{config::Conf, metrics::Metrics, routes};
 use tokio::sync::RwLock;
@@ -18,7 +18,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(gauge_clone.clone()))
             .service(routes::metrics)
     })
-    .bind(("0.0.0.0", 8090))?
+    .bind(("0.0.0.0", 8080))?
     .run()
     .await
 }

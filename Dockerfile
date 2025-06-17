@@ -2,8 +2,6 @@ FROM rust:1.87.0-alpine3.22 AS builder
 
 WORKDIR /app
 
-# RUN apk add --no-cache build-base
-# RUN apk add --no-cache musl-dev gcc openssl-dev librdkafka bash g++
 RUN apk add --no-cache musl-dev gcc
 
 COPY . .

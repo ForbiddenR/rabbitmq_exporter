@@ -1,4 +1,4 @@
-use prometheus::{GaugeVec, register_gauge_vec};
+use prometheus::{Gauge, register_gauge};
 
 use crate::{
     config::Conf,
@@ -7,8 +7,8 @@ use crate::{
 
 pub struct Metrics {
     overview: OverviewExporter,
-    queue: Option<QueueExporter>,
-    up_metric: GaugeVec,
+    queue: QueueExporter,
+    up_metric: Gauge,
     config: Conf,
 }
 
@@ -16,41 +16,40 @@ impl Metrics {
     pub fn new(config: Conf) -> Self {
         Metrics {
             config: config.clone(),
-            overview: OverviewExporter::new(
-                config.enabled_exporters.contains(&"overview".to_owned()),
-            ),
-            up_metric: register_gauge_vec!(
+            overview: OverviewExporter::new(),
+            up_metric: register_gauge!(
                 "node_status",
-                "Was the last scrape of rabbitmq successful.",
-                &["node"]
+                "Was the last scrape of rabbitmq successful."
             )
             .expect("Could not create gauge"),
-            queue: if config.enabled_exporters.contains(&"queue".to_owned()) {
-                Some(QueueExporter::new())
-            } else {
-                None
-            },
+            queue: QueueExporter::new(),
         }
     }
 
-    pub async fn collect(&mut self) {
-        self.up_metric.reset();
-
-        if let Err(e) = self.overview.collect(&self.config).await {
+    pub async fn collect(&mut self, header: &str) {
+        if let Err(e) = self
+            .overview
+            .collect(
+                &self.config,
+                self.config
+                    .enabled_exporters
+                    .contains(&"overview".to_owned())
+                    || header.contains("overview"),
+            )
+            .await
+        {
             log::error!("failed to fetch overview messages: {e}");
-            return self.up_metric
-                .with_label_values(&[self.overview.get_node_name()])
-                .set(0.0)
+            return self.up_metric.set(0.0);
         } else {
-            self.up_metric
-                .with_label_values(&[self.overview.get_node_name()])
-                .set(1.0);
+            self.up_metric.set(1.0);
         }
 
-        if let Some(q) = &self.queue {
-            if let Err(e) = q.collect(&self.config).await {
+        if self.config.enabled_exporters.contains(&"queue".to_owned()) || header.contains("queue") {
+            if let Err(e) = self.queue.collect(&self.config).await {
                 log::error!("failed to fetch queue message: {e}");
             }
+        } else {
+            self.queue.clear();
         }
     }
 }

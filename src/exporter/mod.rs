@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
-use prometheus::{Gauge, register_gauge, register_gauge_vec, GaugeVec};
+use prometheus::{Gauge, GaugeVec, register_gauge, register_gauge_vec};
 use reqwest::{Error, Response};
 use serde_json::{Map, Value};
 
@@ -13,7 +13,7 @@ pub mod queue;
 macro_rules! set_field {
     ($node_info:expr, $value:expr, $field:literal, $target: ident) => {
         if let Some(val) = $value.get($field).and_then(|f| f.as_str()) {
-            $node_info.$target = val.into();
+            $node_info.$target = val.replace("rabbit@", "");
         }
     };
 }
@@ -41,10 +41,18 @@ macro_rules! set_gauge_vec {
 
 fn new_gauge(name: &str, help: &str) -> Gauge {
     register_gauge!(name, help).expect("Could not create gauge")
-} 
+}
 
 pub fn new_gauge_vec(name: &str, help: &str, tags: &[&str]) -> GaugeVec {
     register_gauge_vec!(name, help, tags).expect("Could not create gauge")
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn replace() {
+        assert_eq!("rabbitmq1", "rabbit@rabbitmq1".replace("rabbit@", ""));
+    }
 }
 
 pub fn make_status_info(
@@ -64,7 +72,7 @@ pub fn make_status_info(
                     vec0.insert(d.to_owned(), "".to_owned());
                     match f.get(d) {
                         Some(Value::String(n)) => {
-                            vec0.insert(d.to_owned(), n.to_string());
+                            vec0.insert(d.to_owned(), n.replace("@", "-"));
                         }
                         Some(Value::Bool(n)) => {
                             vec0.insert(

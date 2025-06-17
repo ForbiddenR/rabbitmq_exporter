@@ -4,3 +4,5 @@ rabbitmq.toml
 .erlang.cookie
 cluster-entrypoint.sh
 docker-*
+tests
+exporter.*
