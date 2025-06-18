@@ -1,10 +1,10 @@
 use std::{collections::HashMap, time::Duration};
 
 use prometheus::{Gauge, GaugeVec, register_gauge, register_gauge_vec};
-use reqwest::{Error, Response};
+use reqwest::Response;
 use serde_json::{Map, Value};
 
-use crate::config::Conf;
+use crate::{config::Conf, error::Error};
 
 pub mod overview;
 pub mod queue;
@@ -139,7 +139,7 @@ fn add_fields(map: &mut HashMap<String, f64>, basename: String, source: &Map<Str
 
 async fn request(config: &Conf, endpoint: &str) -> Result<Response, Error> {
     let client = reqwest::Client::new();
-    client
+    let r = client
         .get(format!("{}/{}/{}", config.rabbit_url, "api", endpoint))
         .basic_auth(
             config.rabbit_user.to_string(),
@@ -148,5 +148,6 @@ async fn request(config: &Conf, endpoint: &str) -> Result<Response, Error> {
         .header("Accept", "application/json")
         .timeout(Duration::from_secs(config.timeout as u64))
         .send()
-        .await
+        .await?;
+    Ok(r)
 }

@@ -14,7 +14,7 @@ pub async fn metrics(
 ) -> impl Responder {
     let start = Utc::now();
     {
-        metric.write().await.collect(&header.to_string()).await;
+        metric.write().await.collect(&header).await;
     }
     let duration = Utc::now() - start;
     log::info!("wait {} milliseconds", duration.num_milliseconds());

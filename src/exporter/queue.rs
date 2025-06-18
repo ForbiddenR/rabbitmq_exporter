@@ -12,7 +12,6 @@ use crate::{
 
 #[derive(Clone)]
 pub struct QueueExporter {
-    // pub cluster_name: String,
     queue_gauge_vec: HashMap<String, GaugeVec>,
 }
 

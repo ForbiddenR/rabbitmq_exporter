@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{ops::Deref, str::FromStr};
 
 use actix_web::http::header::{
     Header, HeaderName, HeaderValue, InvalidHeaderValue, TryIntoHeaderValue,
@@ -7,9 +7,11 @@ use actix_web::http::header::{
 #[derive(Debug)]
 pub struct ExporterKey(String);
 
-impl ExporterKey {
-    pub fn to_string(&self) -> String {
-        self.0.to_string()
+impl Deref for ExporterKey {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
