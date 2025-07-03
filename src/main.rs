@@ -16,6 +16,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(Data::new(gauge_clone.clone()))
             .service(routes::metrics)
+            .service(routes::heartbeat)
     })
     .bind(("0.0.0.0", 8080))?
     .run()

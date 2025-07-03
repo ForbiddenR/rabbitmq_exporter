@@ -1,11 +1,16 @@
 use std::{sync::Arc, vec};
 
-use actix_web::{HttpResponse, Responder, get, web};
+use actix_web::{dev::Response, get, web, HttpResponse, Responder};
 use chrono::Utc;
 use prometheus::{Encoder, TextEncoder};
 use tokio::sync::RwLock;
 
 use crate::{header::ExporterKey, metrics::Metrics};
+
+#[get("/heartbeat")]
+pub async fn heartbeat() -> impl Responder {
+    Response::ok()
+}
 
 #[get("/metrics")]
 pub async fn metrics(
