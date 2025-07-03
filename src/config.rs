@@ -14,8 +14,7 @@ pub struct Conf {
 
 impl Conf {
     pub fn build() -> Result<Conf, Error> {
-        let conf = envy::from_env::<Conf>()?;
-        Ok(conf)
+        Ok(envy::from_env::<Conf>()?)
     }
 }
 

@@ -35,13 +35,13 @@ impl Header for ExporterKey {
         let header_value = msg.headers().get(Self::name());
 
         if header_value.is_none() {
-            return Ok(ExporterKey("".to_string()));
+            return Ok(ExporterKey("".into()));
         } else {
             let header_value = header_value
                 .unwrap()
                 .to_str()
                 .map_err(|_| actix_web::error::ParseError::Header)?;
-            Ok(ExporterKey(header_value.to_string()))
+            Ok(ExporterKey(header_value.into()))
         }
     }
 }
