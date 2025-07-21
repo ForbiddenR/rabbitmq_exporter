@@ -1,7 +1,6 @@
 use std::{sync::Arc, vec};
 
-use actix_web::{dev::Response, get, web, HttpResponse, Responder};
-use chrono::Utc;
+use actix_web::{HttpResponse, Responder, dev::Response, get, web};
 use prometheus::{Encoder, TextEncoder};
 use tokio::sync::RwLock;
 
@@ -15,22 +14,21 @@ pub async fn heartbeat() -> impl Responder {
 #[get("/metrics")]
 pub async fn metrics(
     header: web::Header<ExporterKey>,
-    metric: web::Data<Arc<RwLock<Metrics>>>,
+    exporter: web::Data<Arc<RwLock<Metrics>>>,
 ) -> impl Responder {
-    let start = Utc::now();
+    // let start = Utc::now();
+    let metric;
     {
-        metric.write().await.collect(&header).await;
+        metric = exporter.write().await.collect(&header).await;
     }
-    let duration = Utc::now() - start;
-    log::info!("wait {} milliseconds", duration.num_milliseconds());
+    // let duration = Utc::now() - start;
+    // log::info!("wait {} milliseconds", duration.num_milliseconds());
+    log::info!("data {:?}", &metric);
 
     let mut buffer = vec![];
     let encoder = TextEncoder::new();
-    let metric_families = prometheus::gather();
-    let result = encoder.encode(&metric_families, &mut buffer);
-    if let Ok(_) = result {
-        HttpResponse::Ok().body(buffer)
-    } else {
-        HttpResponse::BadGateway().body("Failed to get prometheus messages")
+    match encoder.encode(&metric, &mut buffer) {
+        Err(e) => HttpResponse::BadGateway().body(format!("{e}")),
+        _ => HttpResponse::Ok().body(buffer),
     }
 }

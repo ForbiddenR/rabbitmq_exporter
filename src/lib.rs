@@ -1,9 +1,10 @@
+pub mod client;
 pub mod config;
-pub mod error;
 pub mod exporter;
-pub mod metrics;
-pub mod routes;
 pub mod header;
+pub mod metrics;
+pub mod response;
+pub mod routes;
 
 pub fn set_log() {
     fern::Dispatch::new()

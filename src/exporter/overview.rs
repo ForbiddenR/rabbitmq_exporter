@@ -1,17 +1,22 @@
 use std::collections::HashMap;
 
-use prometheus::Gauge;
+use anyhow::Result;
+use prometheus::{GaugeVec, Opts, core::Collector, proto::MetricFamily};
 use serde_json::Value;
 
 use crate::{
+    client::request,
     config::Conf,
-    error::Error,
-    exporter::{RabbitJsonReply, RabbitReply, new_gauge, request}, set_gauge,
+    exporter::{RabbitJsonReply, RabbitReply},
+    query, set_gauge, set_gauge_vec,
 };
+
+const ENDPOINT: &str = "overview";
+const EMPTOY_LABEL: &[&str] = &[];
 
 pub struct OverviewExporter {
     // node_info: Option<NodeInfo>,
-    metric_description: HashMap<String, Gauge>,
+    metric_description: HashMap<String, GaugeVec>,
 }
 
 impl OverviewExporter {
@@ -51,28 +56,29 @@ impl OverviewExporter {
             ),
         ]);
 
-        Self {
-            metric_description,
-        }
+        Self { metric_description }
     }
 
     pub fn clear(&self) {
-        self.metric_description.iter().for_each(|(_, f)| f.set(0.0));
+        self.metric_description.iter().for_each(|(.., f)| f.reset());
     }
 
-    pub async fn collect(&mut self, config: &Conf, enable: bool) -> Result<(), Error> {
+    pub async fn collect(&mut self, config: &Conf) -> Result<Vec<MetricFamily>> {
         self.clear();
-        let response = request(config, "overview").await?.json::<Value>().await?;
+        let resp: Value = query!(config);
 
-        if enable {
-            RabbitJsonReply::from_response(&response)
-                .make_map()
-                .iter()
-                .for_each(|(k, &v)| {
-                    self.metric_description.get(k).map(|f| f.set(v));
-                });
-        }
-
-        Ok(())
+        RabbitJsonReply::from_response(&resp)
+            .make_map()
+            .iter()
+            .for_each(|(k, &v)| {
+                self.metric_description
+                    .get(k)
+                    .map(|f| f.with_label_values(EMPTOY_LABEL).add(v));
+            });
+        Ok(self
+            .metric_description
+            .values()
+            .flat_map(|f| f.collect())
+            .collect())
     }
 }

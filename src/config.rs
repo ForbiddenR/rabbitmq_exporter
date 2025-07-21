@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::error::Error;
+use anyhow::Result;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Conf {
@@ -9,12 +9,17 @@ pub struct Conf {
     pub rabbit_pass: String,
     #[serde(default)]
     pub enabled_exporters: Vec<String>,
+    #[serde(default = "Conf::default_timeout")]
     pub timeout: u32,
 }
 
 impl Conf {
-    pub fn build() -> Result<Conf, Error> {
+    pub fn build() -> Result<Conf> {
         Ok(envy::from_env::<Conf>()?)
+    }
+
+    fn default_timeout() -> u32 {
+        1
     }
 }
 

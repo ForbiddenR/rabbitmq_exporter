@@ -1,14 +1,17 @@
 use std::collections::HashMap;
 
-use prometheus::GaugeVec;
+use anyhow::Result;
+use prometheus::{GaugeVec, Opts, core::Collector, proto::MetricFamily};
 use serde_json::Value;
 
 use crate::{
+    client::request,
     config::Conf,
-    error::Error,
-    exporter::{RabbitJsonReply, RabbitReply, new_gauge_vec, request},
-    get_value, set_gauge_vec,
+    exporter::{RabbitJsonReply, RabbitReply},
+    get_value, query, set_gauge_vec,
 };
+
+const ENDPOINT: &str = "queues";
 
 #[derive(Clone)]
 pub struct QueueExporter {
@@ -31,22 +34,26 @@ impl QueueExporter {
         self.queue_gauge_vec.iter().for_each(|(_, f)| f.reset());
     }
 
-    pub async fn collect(&self, config: &Conf) -> Result<(), Error> {
+    pub async fn collect(&self, config: &Conf) -> Result<Vec<MetricFamily>> {
         self.clear();
-        let response = request(config, "queues").await?.json::<Value>().await?;
+        let resp: Value = query!(config);
 
-        RabbitJsonReply::from_response(&response)
+        RabbitJsonReply::from_response(&resp)
             .make_stats_info(&vec!["name"])
             .iter()
             .for_each(|f| {
                 let qname = get_value!(f.0, "name");
 
                 self.queue_gauge_vec.iter().for_each(|k| {
-                    let key = k.0.clone();
-                    f.1.get(&key)
+                    f.1.get(k.0.as_str())
                         .map(|&va| k.1.with_label_values(&[&qname]).set(va));
                 });
             });
-        Ok(())
+
+        Ok(self
+            .queue_gauge_vec
+            .values()
+            .flat_map(|f| f.collect())
+            .collect())
     }
 }

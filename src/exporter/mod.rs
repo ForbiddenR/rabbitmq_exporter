@@ -1,11 +1,8 @@
-use std::{collections::HashMap, time::Duration};
+use std::collections::HashMap;
 
-use prometheus::{Gauge, GaugeVec, register_gauge, register_gauge_vec};
-use reqwest::Response;
 use serde_json::{Map, Value};
 
-use crate::{config::Conf, error::Error};
-
+pub mod healthcheck;
 pub mod overview;
 pub mod queue;
 
@@ -19,27 +16,23 @@ macro_rules! get_value {
 #[macro_export]
 macro_rules! set_gauge {
     ($key: literal, $name: literal, $help:literal) => {
-        ($key.to_string(), new_gauge($name, $help))
+        set_gauge_vec!($key, $name, $help, EMPTOY_LABEL)
     };
 }
 
 #[macro_export]
 macro_rules! set_gauge_vec {
     ($key:literal, $name:literal, $help:literal, $args:expr) => {
-        ($key.to_string(), new_gauge_vec($name, $help, $args))
+        (
+            $key.to_string(),
+            GaugeVec::new(Opts::new($name, $help), $args).expect("Could not create gauge vec"),
+        )
     };
-}
-
-fn new_gauge(name: &str, help: &str) -> Gauge {
-    register_gauge!(name, help).expect("Could not create gauge")
-}
-
-pub fn new_gauge_vec(name: &str, help: &str, tags: &[&str]) -> GaugeVec {
-    register_gauge_vec!(name, help, tags).expect("Could not create gauge")
 }
 
 #[cfg(test)]
 mod tests {
+
     #[test]
     fn replace() {
         assert_eq!("rabbitmq1", "rabbit@rabbitmq1".replace("rabbit@", ""));
@@ -135,19 +128,4 @@ fn add_fields(map: &mut HashMap<String, f64>, basename: String, source: &Map<Str
             _ => {}
         }
     }
-}
-
-async fn request(config: &Conf, endpoint: &str) -> Result<Response, Error> {
-    let client = reqwest::Client::new();
-    let r = client
-        .get(format!("{}/{}/{}", config.rabbit_url, "api", endpoint))
-        .basic_auth(
-            config.rabbit_user.to_string(),
-            Some(config.rabbit_pass.to_string()),
-        )
-        .header("Accept", "application/json")
-        .timeout(Duration::from_secs(config.timeout as u64))
-        .send()
-        .await?;
-    Ok(r)
 }
