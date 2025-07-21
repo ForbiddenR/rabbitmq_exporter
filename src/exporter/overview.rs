@@ -15,7 +15,6 @@ const ENDPOINT: &str = "overview";
 const EMPTOY_LABEL: &[&str] = &[];
 
 pub struct OverviewExporter {
-    // node_info: Option<NodeInfo>,
     metric_description: HashMap<String, GaugeVec>,
 }
 
@@ -60,10 +59,10 @@ impl OverviewExporter {
     }
 
     pub fn clear(&self) {
-        self.metric_description.iter().for_each(|(.., f)| f.reset());
+        self.metric_description.values().for_each(|f| f.reset());
     }
 
-    pub async fn collect(&mut self, config: &Conf) -> Result<Vec<MetricFamily>> {
+    pub async fn collect(&self, config: &Conf) -> Result<Vec<MetricFamily>> {
         self.clear();
         let resp: Value = query!(config);
 

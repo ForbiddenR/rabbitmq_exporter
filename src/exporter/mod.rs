@@ -21,6 +21,13 @@ macro_rules! set_gauge {
 }
 
 #[macro_export]
+macro_rules! get_gauge_vec {
+    ($name:literal, $help:literal, $args:expr) => {
+            GaugeVec::new(Opts::new($name, $help), $args).expect("Could not create gauge vec")
+    };
+}
+
+#[macro_export]
 macro_rules! set_gauge_vec {
     ($key:literal, $name:literal, $help:literal, $args:expr) => {
         (

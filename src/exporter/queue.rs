@@ -1,59 +1,61 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
 use prometheus::{GaugeVec, Opts, core::Collector, proto::MetricFamily};
-use serde_json::Value;
 
-use crate::{
-    client::request,
-    config::Conf,
-    exporter::{RabbitJsonReply, RabbitReply},
-    get_value, query, set_gauge_vec,
-};
+use crate::{client::request, config::Conf, get_gauge_vec, query, response::queue::QueueResposne};
 
 const ENDPOINT: &str = "queues";
 
-#[derive(Clone)]
+struct QueueMetric {
+    gauge_vec: GaugeVec,
+    value_fn: fn(&QueueResposne) -> f64,
+}
+
+impl QueueMetric {
+    fn new(gauge_vec: GaugeVec, value_fn: fn(&QueueResposne) -> f64) -> Self {
+        Self {
+            gauge_vec,
+            value_fn,
+        }
+    }
+}
+
 pub struct QueueExporter {
-    queue_gauge_vec: HashMap<String, GaugeVec>,
+    queue_gauge_vec: Vec<QueueMetric>,
 }
 
 impl QueueExporter {
     pub fn new() -> Self {
         let queue_labels = ["queue"];
-        let queue_gauge_vec = HashMap::from([set_gauge_vec!(
-            "messages",
-            "queue_messages",
-            "Sum of ready and unacknowledged messages (queue depth).",
-            &queue_labels
-        )]);
+        let queue_gauge_vec = vec![QueueMetric::new(
+            get_gauge_vec!(
+                "queue_messages",
+                "Sum of ready and unacknowledged messages (queue depth).",
+                &queue_labels
+            ),
+            |q| q.messages as f64,
+        )];
         QueueExporter { queue_gauge_vec }
     }
 
-    pub fn clear(&self) {
-        self.queue_gauge_vec.iter().for_each(|(_, f)| f.reset());
-    }
-
     pub async fn collect(&self, config: &Conf) -> Result<Vec<MetricFamily>> {
-        self.clear();
-        let resp: Value = query!(config);
-
-        RabbitJsonReply::from_response(&resp)
-            .make_stats_info(&vec!["name"])
+        self.queue_gauge_vec
             .iter()
-            .for_each(|f| {
-                let qname = get_value!(f.0, "name");
+            .for_each(|f| f.gauge_vec.reset());
 
-                self.queue_gauge_vec.iter().for_each(|k| {
-                    f.1.get(k.0.as_str())
-                        .map(|&va| k.1.with_label_values(&[&qname]).set(va));
-                });
+        let resp: Vec<QueueResposne> = query!(config);
+
+        for q in &resp {
+            self.queue_gauge_vec.iter().for_each(|f| {
+                f.gauge_vec
+                    .with_label_values(&[&q.name])
+                    .set((f.value_fn)(q))
             });
+        }
 
         Ok(self
             .queue_gauge_vec
-            .values()
-            .flat_map(|f| f.collect())
+            .iter()
+            .flat_map(|f| f.gauge_vec.collect())
             .collect())
     }
 }

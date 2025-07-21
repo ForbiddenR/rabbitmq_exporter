@@ -23,7 +23,6 @@ pub async fn metrics(
     }
     // let duration = Utc::now() - start;
     // log::info!("wait {} milliseconds", duration.num_milliseconds());
-    log::info!("data {:?}", &metric);
 
     let mut buffer = vec![];
     let encoder = TextEncoder::new();

@@ -1,15 +1,23 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use prometheus::proto::MetricFamily;
 
-use crate::{config::Conf, query, response::ping::HealthcheckResponse};
+use crate::{client::request, config::Conf, query, response::healthcheck::HealthcheckResponse};
 
 const ENDPOINT: &str = "healthchecks/node";
 
 pub struct HealthcheckExporter {}
 
 impl HealthcheckExporter {
-    pub async fn collect(&mut self, config: &Conf) -> Result<Vec<MetricFamily>> {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub async fn collect(&self, config: &Conf) -> Result<Vec<MetricFamily>> {
         let resp: HealthcheckResponse = query!(config);
-        if 
+        if resp.is_ok() {
+            Ok(vec![])
+        } else {
+            Err(anyhow!(format!("abnornal resp status: {}", resp.status)))
+        }
     }
 }
