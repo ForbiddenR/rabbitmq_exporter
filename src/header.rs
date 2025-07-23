@@ -1,47 +1,52 @@
 use std::{ops::Deref, str::FromStr};
 
-use actix_web::http::header::{
-    Header, HeaderName, HeaderValue, InvalidHeaderValue, TryIntoHeaderValue,
+use actix_web::{
+    error::ParseError,
+    http::header::{Header, HeaderName, HeaderValue, InvalidHeaderValue, TryIntoHeaderValue},
 };
 
+use crate::config::Mode;
+
 #[derive(Debug)]
-pub struct ExporterKey(String);
+pub struct ExporterKey(pub Option<Mode>);
 
 impl Deref for ExporterKey {
-    type Target = String;
+    type Target = Option<Mode>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
+impl<'a> Into<&'a str> for ExporterKey {
+    fn into(self) -> &'a str {
+        self.0.map(|f| f.into()).unwrap_or("")
+    }
+}
+
 impl TryIntoHeaderValue for ExporterKey {
     type Error = InvalidHeaderValue;
 
-    fn try_into_value(self) -> Result<actix_web::http::header::HeaderValue, Self::Error> {
-        HeaderValue::from_str(&self.0)
+    fn try_into_value(self) -> Result<HeaderValue, Self::Error> {
+        HeaderValue::from_str(self.into())
     }
 }
 
 impl Header for ExporterKey {
-    fn name() -> actix_web::http::header::HeaderName {
-        HeaderName::from_str("ENABLED_EXPORTERS").unwrap()
+    fn name() -> HeaderName {
+        HeaderName::from_str("EXPORTER_MODE").unwrap()
     }
 
-    fn parse<M>(msg: &M) -> Result<Self, actix_web::error::ParseError>
+    fn parse<M>(msg: &M) -> Result<Self, ParseError>
     where
         M: actix_web::HttpMessage,
     {
-        let header_value = msg.headers().get(Self::name());
-
-        if header_value.is_none() {
-            return Ok(ExporterKey("".into()));
-        } else {
-            let header_value = header_value
-                .unwrap()
-                .to_str()
-                .map_err(|_| actix_web::error::ParseError::Header)?;
-            Ok(ExporterKey(header_value.into()))
-        }
+        Ok(ExporterKey(
+            msg.headers()
+                .get(Self::name())
+                .map(|f| f.try_into())
+                .transpose()
+                .map_err(|_| ParseError::Header)?,
+        ))
     }
 }

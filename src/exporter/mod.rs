@@ -50,7 +50,6 @@ trait RabbitReply {
     type MetricMap;
     type StatsInfo;
     fn make_map(&self) -> Self::MetricMap;
-    fn make_stats_info(&self, labels: &[&str]) -> Vec<Self::StatsInfo>;
 }
 
 struct RabbitJsonReply<'a> {
@@ -74,41 +73,6 @@ impl<'a> RabbitReply for RabbitJsonReply<'a> {
             add_fields(&mut map, "".into(), &data);
         }
         map
-    }
-
-    fn make_stats_info(&self, labels: &[&str]) -> Vec<Self::StatsInfo> {
-        let mut vec = vec![];
-        if let Some(data) = self.body.as_array() {
-            data.iter().for_each(|f| {
-                let mut field = "";
-                f.get("name").map(|_| field = "name");
-                f.get("id").map(|_| field = "id");
-                if !field.is_empty() {
-                    let mut vec0 = HashMap::new();
-                    let mut vec1 = HashMap::new();
-                    labels.iter().for_each(|&d| {
-                        vec0.insert(d.to_owned(), "".to_owned());
-                        match f.get(d) {
-                            Some(Value::String(n)) => {
-                                vec0.insert(d.to_owned(), n.to_string());
-                            }
-                            Some(Value::Bool(n)) => {
-                                vec0.insert(
-                                    d.to_owned(),
-                                    if *n { "1".to_owned() } else { "0".to_owned() },
-                                );
-                            }
-                            _ => {}
-                        }
-                    });
-                    if let Some(s) = f.as_object() {
-                        add_fields(&mut vec1, "".into(), s);
-                    }
-                    vec.push((vec0, vec1));
-                }
-            });
-        }
-        vec
     }
 }
 
