@@ -3,7 +3,8 @@ use prometheus::proto::MetricFamily;
 
 use crate::{client::request, config::Conf, query, response::healthcheck::HealthcheckResponse};
 
-const ENDPOINT: &str = "healthchecks/node";
+// const ENDPOINT: &str = "healthchecks/node";
+const ENDPOINT: &str = "health/checks/local-alarms";
 
 pub struct HealthcheckExporter {}
 

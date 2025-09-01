@@ -1,18 +1,14 @@
-FROM rust:1.89.0-alpine3.22 AS builder
+FROM rust:1.89.0 AS builder
 
 WORKDIR /app
-
-RUN apk add --no-cache musl-dev gcc
 
 COPY . .
 
 RUN rustup default nightly && cargo build --release
 
-FROM alpine:3.22
+FROM gcr.io/distroless/cc-debian12
 
-WORKDIR /app
-
-COPY --from=builder /app/target/release/ax-rabbitmq-exporter ax-rabbitmq-exporter
+COPY --from=builder /app/target/release/ax-rabbitmq-exporter /
 
 ENV RUST_LOG=info
 
