@@ -57,5 +57,32 @@ impl QueueExporter {
             .iter()
             .flat_map(|f| f.gauge_vec.collect())
             .collect())
+
+        // let mut metricfamiles = self
+        //     .queue_gauge_vec
+        //     .iter()
+        //     .flat_map(|f| f.gauge_vec.collect())
+        //     .collect::<Vec<MetricFamily>>();
+
+        // for i in &mut metricfamiles {
+        //     i.metric.sort_by(|x, y| {
+        //         let mut ordering = y
+        //             .gauge
+        //             .value()
+        //             .partial_cmp(&x.gauge.value())
+        //             .unwrap_or(std::cmp::Ordering::Equal);
+
+        //         if ordering == std::cmp::Ordering::Equal {
+        //             ordering = x
+        //                 .get_label()
+        //                 .get(0)
+        //                 .unwrap_or_default()
+        //                 .value()
+        //                 .cmp(&y.get_label().get(0).unwrap_or_default().value());
+        //         }
+        //         ordering
+        //     });
+        // }
+        // Ok(metricfamiles)
     }
 }
